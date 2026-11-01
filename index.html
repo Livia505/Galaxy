@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday Herry!</title>
+    <!-- Tailwind CSS for UI Controls -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #05020a;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* Canvas overlayed */
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Glowing text effect */
+        .glow-text {
+            text-shadow: 0 0 10px #ff2a8d, 0 0 20px #ff2a8d, 0 0 40px #ff2a8d;
+        }
+    </style>
+</head>
+<body class="bg-black text-white select-none">
+
+    <!-- Canvas for Matrix Rain and Particle Effects -->
+    <canvas id="mainCanvas"></canvas>
+
+    <!-- Main Animation Logic -->
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Matrix Rain Setup
+        const characters = '0123456789ABCDEF♥💖💕HAPPYBIRTHDAYHERRY15122007';
+        const fontSize = 16;
+        let columns = Math.floor(width / fontSize);
+        let drops = [];
+
+        function initMatrix() {
+            columns = Math.floor(width / fontSize);
+            drops = [];
+            for (let i = 0; i < columns; i++) {
+                drops[i] = Math.random() * -100; // staggered starts
+            }
+        }
+        initMatrix();
+        window.addEventListener('resize', initMatrix);
+
+        function drawMatrix() {
+            // Dark trail background
+            ctx.fillStyle = 'rgba(5, 2, 10, 0.12)';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = '#ff3388'; // Pink matrix text
+            ctx.font = `${fontSize}px monospace`;
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = characters.charAt(Math.floor(Math.random() * characters.length));
+                const x = i * fontSize;
+                const y = drops[i] * fontSize;
+
+                // Slightly brighter leading characters
+                if (Math.random() > 0.85) {
+                    ctx.fillStyle = '#ffffff';
+                } else {
+                    ctx.fillStyle = 'rgba(255, 51, 136, 0.6)';
+                }
+
+                ctx.fillText(text, x, y);
+
+                if (y > height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        // --- Particle Heart & Text Display Logic ---
+        class DotParticle {
+            constructor(targetX, targetY) {
+                // Start from random positions around the screen
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.vx = 0;
+                this.vy = 0;
+                this.radius = Math.random() * 2 + 1.2;
+                this.color = `hsl(${330 + Math.random() * 30}, 100%, ${65 + Math.random() * 25}%)`;
+                this.friction = 0.88;
+                this.ease = 0.05 + Math.random() * 0.03;
+            }
+
+            update() {
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                
+                this.vx += dx * this.ease * 0.1;
+                this.vy += dy * this.ease * 0.1;
+                
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+
+                this.x += this.vx + dx * 0.04;
+                this.y += this.vy + dy * 0.04;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#ff2a8d';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Generates sample points for Text or Heart outline
+        function getPointsFromCanvas(drawCallback) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            drawCallback(tempCtx);
+
+            const imgData = tempCtx.getImageData(0, 0, width, height).data;
+            const points = [];
+            const step = Math.max(3, Math.floor(width / 320)); // Adjust density based on screen width
+
+            for (let y = 0; y < height; y += step) {
+                for (let x = 0; x < width; x += step) {
+                    const index = (y * width + x) * 4;
+                    const alpha = imgData[index + 3];
+                    if (alpha > 128) {
+                        points.push({ x, y });
+                    }
+                }
+            }
+            return points;
+        }
+
+        // Heart Parametric Equation
+        function getHeartPoints() {
+            const points = [];
+            const scale = Math.min(width, height) / 38; 
+            const centerX = width / 2;
+            const centerY = height / 2 - 20;
+
+            const totalPoints = width < 640 ? 450 : 750;
+
+            for (let i = 0; i < totalPoints; i++) {
+                const t = (i / totalPoints) * Math.PI * 2;
+                // Parametric heart formula
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+
+                points.push({
+                    x: centerX + x * scale,
+                    y: centerY + y * scale
+                });
+            }
+            return points;
+        }
+
+        // Generate points for text
+        function getTextPoints(text, fontSizePx = 120) {
+            return getPointsFromCanvas((tCtx) => {
+                const responsiveFontSize = Math.min(fontSizePx, width * 0.22);
+                tCtx.font = `bold ${responsiveFontSize}px 'Courier New', monospace`;
+                tCtx.textAlign = 'center';
+                tCtx.textBaseline = 'middle';
+                tCtx.fillStyle = '#ffffff';
+                tCtx.fillText(text, width / 2, height / 2);
+            });
+        }
+
+        // Active particles array
+        let activeParticles = [];
+
+        function setTargetPoints(targetPoints) {
+            // Adjust particles count dynamically
+            if (activeParticles.length < targetPoints.length) {
+                const diff = targetPoints.length - activeParticles.length;
+                for (let i = 0; i < diff; i++) {
+                    activeParticles.push(new DotParticle(width / 2, height / 2));
+                }
+            } else if (activeParticles.length > targetPoints.length) {
+                activeParticles = activeParticles.slice(0, targetPoints.length);
+            }
+
+            // Shuffle targets for organic morphing effect
+            const shuffledTargets = [...targetPoints].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < activeParticles.length; i++) {
+                activeParticles[i].targetX = shuffledTargets[i].x;
+                activeParticles[i].targetY = shuffledTargets[i].y;
+            }
+        }
+
+        // Animation Sequence Steps
+        let currentStep = -1;
+        let heartPhase = false;
+
+        const sequence = [
+            { text: '3', duration: 1200 },
+            { text: '2', duration: 1200 },
+            { text: '1', duration: 1200 },
+            { text: '15', duration: 1400 },
+            { text: 'Desember', duration: 1500 },
+            { text: '2007', duration: 1500 },
+        ];
+
+        function nextSequenceStep() {
+            currentStep++;
+            if (currentStep < sequence.length) {
+                const step = sequence[currentStep];
+                const points = getTextPoints(step.text, 140);
+                setTargetPoints(points);
+                setTimeout(nextSequenceStep, step.duration);
+            } else {
+                // Heart & Final Birthday Message
+                showHeartAndMessage();
+            }
+        }
+
+        function showHeartAndMessage() {
+            heartPhase = true;
+            const heartPts = getHeartPoints();
+            setTargetPoints(heartPts);
+        }
+
+        // Central Text inside Heart
+        function drawHeartText() {
+            if (!heartPhase) return;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const baseSize = Math.min(32, width * 0.05);
+            ctx.font = `bold ${baseSize}px 'Courier New', monospace`;
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ff2a8d';
+            ctx.shadowBlur = 15;
+
+            // Heart central label: "Happy Birthday to You Herry"
+            const line1 = "Happy Birthday";
+            const line2 = "to You";
+            const line3 = "Herry";
+
+            const centerY = height / 2 - 15;
+            ctx.fillText(line1, width / 2, centerY - 30);
+            ctx.fillText(line2, width / 2, centerY + 10);
+            
+            ctx.font = `bold ${baseSize * 1.3}px 'Courier New', monospace`;
+            ctx.fillStyle = '#ff80bf';
+            ctx.fillText(line3, width / 2, centerY + 55);
+
+            ctx.restore();
+        }
+
+        // Main Render Loop
+        function animate() {
+            // Draw digital matrix background
+            drawMatrix();
+
+            // Update & Draw particles
+            for (let i = 0; i < activeParticles.length; i++) {
+                activeParticles[i].update();
+                activeParticles[i].draw();
+            }
+
+            // Render glowing center text once heart forms
+            drawHeartText();
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize Animation Loop on window load
+        window.onload = () => {
+            animate();
+            nextSequenceStep(); // Auto start sequence without needing sound button
+        };
+    </script>
+</body>
+</html>
+```
